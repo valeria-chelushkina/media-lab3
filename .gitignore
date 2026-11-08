@@ -1,0 +1,7 @@
+task.md
+node_modules/
+out/
+dist/
+*.local
+*.log
+.DS_Store

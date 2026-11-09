@@ -1,83 +1,79 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import GrayCanvas from '@renderer/components/GrayCanvas'
-import { forwardDct2D, inverseDct2D, toLogMagnitude } from '@core/dct'
+import { toLogMagnitude } from '@core/dct'
 import { IMAGE_SIZE } from '@core/image'
+import { runDct, type MethodResult } from '@core/pipeline'
 import { loadImageToGray } from '@renderer/services/imageFiles'
 
-type Loaded = {
+type LoadedImage = {
   name: string
   gray: Float32Array
+}
+
+type DctView = MethodResult & {
   spectrum: Float32Array
-  reconstructed: Float32Array
   ms: number
-  maxError: number
-  maxAbs: number
-  meanAbs: number
-  nonzero: number
+}
+
+function useDebounced<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+
+  return debounced
+}
+
+function formatPsnr(value: number): string {
+  return Number.isFinite(value) ? `${value.toFixed(2)} dB` : '∞ dB'
 }
 
 export default function App(): React.JSX.Element {
-  const [loaded, setLoaded] = useState<Loaded | null>(null)
+  const [image, setImage] = useState<LoadedImage | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [keepPercent, setKeepPercent] = useState(25)
+  const appliedPercent = useDebounced(keepPercent, 90)
+
+  const view = useMemo<DctView | null>(() => {
+    if (!image) return null
+
+    const started = performance.now()
+    const result = runDct(image.gray, IMAGE_SIZE, IMAGE_SIZE, appliedPercent / 100)
+    const ms = performance.now() - started
+
+    return { ...result, spectrum: toLogMagnitude(result.coeffs), ms }
+  }, [image, appliedPercent])
 
   async function handleFile(file: File): Promise<void> {
     setBusy(true)
     setError(null)
 
     try {
-      // 1. decode + normalize to 512x512 grayscale
+      // decode + normalize to 512x512 grayscale
       const gray = await loadImageToGray(file, IMAGE_SIZE)
-
-      // 2. forward DCT per 8x8 block, then inverse DCT back to pixels
-      const started = performance.now()
-      const coeffs = forwardDct2D(gray, IMAGE_SIZE, IMAGE_SIZE)
-      const reconstructed = inverseDct2D(coeffs, IMAGE_SIZE, IMAGE_SIZE)
-      const ms = performance.now() - started
-
-      // 3. round-trip error and simple coefficient statistics
-      let maxError = 0
-      let maxAbs = 0
-      let sumAbs = 0
-      let nonzero = 0
-      for (let i = 0; i < coeffs.length; i += 1) {
-        const magnitude = Math.abs(coeffs[i])
-        if (magnitude > maxAbs) maxAbs = magnitude
-        sumAbs += magnitude
-        if (magnitude > 1e-9) nonzero += 1
-
-        const error = Math.abs(reconstructed[i] - gray[i])
-        if (error > maxError) maxError = error
-      }
-
-      setLoaded({
-        name: file.name,
-        gray,
-        spectrum: toLogMagnitude(coeffs),
-        reconstructed,
-        ms,
-        maxError,
-        maxAbs,
-        meanAbs: sumAbs / coeffs.length,
-        nonzero,
-      })
+      setImage({ name: file.name, gray })
     } catch (cause) {
-      setLoaded(null)
+      setImage(null)
       setError(cause instanceof Error ? cause.message : 'Could not read that image.')
     } finally {
       setBusy(false)
     }
   }
 
+  const share = view && view.total > 0 ? view.kept / view.total : 0
+
   return (
     <div className="shell">
       <header className="topbar">
         <div>
           <p className="eyebrow">Multimedia · Lab 3</p>
-          <h1>DCT — forward and inverse</h1>
+          <h1>DCT — compression and PSNR</h1>
           <p className="subtitle">
-            Photo → 512×512 grayscale → 8×8 block DCT → inverse DCT. Coefficients are shown as
-            log magnitude next to the reconstructed image.
+            Photo → 512×512 grayscale → 8×8 block DCT → keep the largest coefficients →
+            inverse DCT. PSNR shows what the dropped coefficients cost.
           </p>
         </div>
 
@@ -92,18 +88,39 @@ export default function App(): React.JSX.Element {
               event.target.value = ''
             }}
           />
-          {busy ? 'Working…' : loaded ? 'Load another photo' : 'Load photo'}
+          {busy ? 'Working…' : image ? 'Load another photo' : 'Load photo'}
         </label>
       </header>
 
       {error ? <p className="error">{error}</p> : null}
 
-      {loaded ? (
+      {image && view ? (
         <>
+          <div className="controls">
+            <div className="slider-row">
+              <label htmlFor="keep">Keep largest coefficients</label>
+              <input
+                id="keep"
+                type="range"
+                min={1}
+                max={100}
+                step={1}
+                value={keepPercent}
+                onChange={(event) => setKeepPercent(Number(event.target.value))}
+              />
+              <output htmlFor="keep">{keepPercent}%</output>
+            </div>
+            <p className="controls-hint">
+              {keepPercent !== appliedPercent
+                ? 'Recomputing…'
+                : `Threshold ${view.threshold.toFixed(1)} · ${view.kept.toLocaleString()} of ${view.total.toLocaleString()} coefficients kept`}
+            </p>
+          </div>
+
           <div className="stats">
             <div className="stat">
               <span>File</span>
-              <strong title={loaded.name}>{loaded.name}</strong>
+              <strong title={image.name}>{image.name}</strong>
             </div>
             <div className="stat">
               <span>Input</span>
@@ -112,60 +129,60 @@ export default function App(): React.JSX.Element {
               </strong>
             </div>
             <div className="stat">
-              <span>Blocks</span>
-              <strong>64 × 64 of 8×8</strong>
+              <span>Total time</span>
+              <strong>{view.ms.toFixed(1)} ms</strong>
             </div>
             <div className="stat">
-              <span>Forward + inverse</span>
-              <strong>{loaded.ms.toFixed(1)} ms</strong>
+              <span>PSNR</span>
+              <strong>{formatPsnr(view.psnr)}</strong>
             </div>
             <div className="stat">
-              <span>Round-trip error</span>
-              <strong>{loaded.maxError.toExponential(1)}</strong>
+              <span>Kept</span>
+              <strong>
+                {view.kept.toLocaleString()} ({(share * 100).toFixed(1)}%)
+              </strong>
             </div>
             <div className="stat">
-              <span>max |F|</span>
-              <strong>{loaded.maxAbs.toFixed(0)}</strong>
-            </div>
-            <div className="stat">
-              <span>mean |F|</span>
-              <strong>{loaded.meanAbs.toFixed(2)}</strong>
+              <span>Est. ratio</span>
+              <strong>{view.kept === 0 ? '∞' : `${(view.total / view.kept).toFixed(1)}×`}</strong>
             </div>
           </div>
 
           <div className="panels">
             <GrayCanvas
-              gray={loaded.gray}
+              gray={image.gray}
               width={IMAGE_SIZE}
               height={IMAGE_SIZE}
               title="Original"
               note="grayscale, normalized"
             />
             <GrayCanvas
-              gray={loaded.spectrum}
+              gray={view.spectrum}
               width={IMAGE_SIZE}
               height={IMAGE_SIZE}
               title="DCT coefficients"
-              note="log(1 + |F|), scaled to 0–255"
+              note="log(1 + |F|), dropped ones are black"
             />
             <GrayCanvas
-              gray={loaded.reconstructed}
+              gray={view.reconstructed}
               width={IMAGE_SIZE}
               height={IMAGE_SIZE}
               title="DCT reconstruction"
-              note="inverse DCT, no quantization"
+              note={`inverse DCT · ${(share * 100).toFixed(1)}% kept`}
             />
           </div>
         </>
       ) : (
         <div className="empty">
-          <p>Load a photo to see its DCT coefficients and the reconstructed image.</p>
-          <p className="empty-hint">The image is resized to {IMAGE_SIZE}×{IMAGE_SIZE} and converted to grayscale first.</p>
+          <p>Load a photo to compress it with the DCT and see the PSNR.</p>
+          <p className="empty-hint">
+            The image is resized to {IMAGE_SIZE}×{IMAGE_SIZE} and converted to grayscale first.
+          </p>
         </div>
       )}
 
       <footer className="footnote">
-        Forward + inverse DCT · coefficient dropping and DWT come next.
+        DCT · adjustable coefficient dropping + PSNR · Haar DWT comes next.
       </footer>
     </div>
   )

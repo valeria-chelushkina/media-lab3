@@ -104,6 +104,46 @@ h1 {
   font-size: 14px;
 }
 
+.controls {
+  margin: 20px 0 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.slider-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.slider-row label {
+  font-size: 14px;
+  font-weight: 550;
+}
+
+.slider-row input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.slider-row output {
+  min-width: 48px;
+  text-align: right;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.controls-hint {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
 .stats {
   display: flex;
   flex-wrap: wrap;

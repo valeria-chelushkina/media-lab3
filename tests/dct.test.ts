@@ -6,6 +6,9 @@ import {
   forwardDct1D,
   forwardDct2D,
   forwardDct8,
+  inverseDct1D,
+  inverseDct2D,
+  inverseDct8,
 } from '@core/dct'
 
 const N = BLOCK_SIZE * BLOCK_SIZE
@@ -34,6 +37,46 @@ function referenceDct2D(block: Float64Array): Float64Array {
       }
 
       out[u * BLOCK_SIZE + v] = ((c(u) * c(v)) / 4) * sum
+    }
+  }
+
+  return out
+}
+
+/** Slide 18 inverse formula, written out literally. */
+function referenceIdct1D(coeffs: Float64Array): Float64Array {
+  const out = new Float64Array(BLOCK_SIZE)
+
+  for (let i = 0; i < BLOCK_SIZE; i += 1) {
+    let sum = 0
+    for (let u = 0; u < BLOCK_SIZE; u += 1) {
+      sum += (c(u) / 2) * Math.cos(((2 * i + 1) * u * Math.PI) / 16) * coeffs[u]
+    }
+    out[i] = sum
+  }
+
+  return out
+}
+
+/** Slide 17 inverse formula, written out literally. */
+function referenceIdct2D(coeffs: Float64Array): Float64Array {
+  const out = new Float64Array(N)
+
+  for (let i = 0; i < BLOCK_SIZE; i += 1) {
+    for (let j = 0; j < BLOCK_SIZE; j += 1) {
+      let sum = 0
+
+      for (let u = 0; u < BLOCK_SIZE; u += 1) {
+        for (let v = 0; v < BLOCK_SIZE; v += 1) {
+          sum +=
+            ((c(u) * c(v)) / 4) *
+            Math.cos(((2 * i + 1) * u * Math.PI) / 16) *
+            Math.cos(((2 * j + 1) * v * Math.PI) / 16) *
+            coeffs[u * BLOCK_SIZE + v]
+        }
+      }
+
+      out[i * BLOCK_SIZE + j] = sum
     }
   }
 
@@ -142,6 +185,88 @@ describe('forwardDct2D', () => {
       // constant 40 block -> DC = 8 * 40 = 320
       expect(coeffs[by * width + bx]).toBeCloseTo(320, 6)
       expect(Math.abs(coeffs[by * width + bx + 1])).toBeLessThan(1e-9)
+    }
+  })
+})
+
+describe('inverseDct1D (slides 18, 26-27)', () => {
+  it('equals the literal inverse sum from the slide', () => {
+    const signal = Float64Array.from([85, -65, 15, 30, -56, 35, 90, 60])
+    const coeffs = forwardDct1D(signal)
+    const expected = referenceIdct1D(coeffs)
+    const restored = inverseDct1D(coeffs)
+
+    for (let i = 0; i < BLOCK_SIZE; i += 1) {
+      expect(restored[i]).toBeCloseTo(expected[i], 9)
+    }
+  })
+
+  it('round-trips an arbitrary signal exactly', () => {
+    const signal = pseudoRandomBlock(3).slice(0, BLOCK_SIZE)
+    const restored = inverseDct1D(forwardDct1D(signal))
+
+    for (let i = 0; i < BLOCK_SIZE; i += 1) {
+      expect(restored[i]).toBeCloseTo(signal[i], 10)
+    }
+  })
+
+  it('recovers the slide 24 signal from its rounded coefficients within ±1', () => {
+    const roundedCoeffs = Float64Array.from([69, -49, 74, 11, 16, 117, 44, -5])
+    const expected = [85, -65, 15, 30, -56, 35, 90, 60]
+    const restored = inverseDct1D(roundedCoeffs)
+
+    expected.forEach((value, i) => {
+      expect(Math.abs(restored[i] - value)).toBeLessThan(1)
+    })
+  })
+})
+
+describe('inverseDct8 (slide 17)', () => {
+  it('equals the literal 2D inverse double sum from the slide', () => {
+    const block = pseudoRandomBlock(13)
+    const coeffs = forwardDct8(block)
+    const expected = referenceIdct2D(coeffs)
+    const restored = inverseDct8(coeffs)
+
+    for (let i = 0; i < N; i += 1) {
+      expect(restored[i]).toBeCloseTo(expected[i], 9)
+    }
+  })
+
+  it('reconstructs a block exactly after a forward pass', () => {
+    const block = pseudoRandomBlock(17)
+    const restored = inverseDct8(forwardDct8(block))
+
+    for (let i = 0; i < N; i += 1) {
+      expect(restored[i]).toBeCloseTo(block[i], 10)
+    }
+  })
+
+  it('turns a DC-only block back into a constant 100 block (slide 25)', () => {
+    const coeffs = new Float64Array(N)
+    coeffs[0] = 8 * 100
+    const restored = inverseDct8(coeffs)
+
+    for (let i = 0; i < N; i += 1) {
+      expect(restored[i]).toBeCloseTo(100, 10)
+    }
+  })
+})
+
+describe('inverseDct2D', () => {
+  it('round-trips a whole image block by block', () => {
+    const width = 16
+    const height = 16
+    const pixels = new Float32Array(width * height)
+
+    for (let i = 0; i < pixels.length; i += 1) {
+      pixels[i] = (i * 37) % 256
+    }
+
+    const restored = inverseDct2D(forwardDct2D(pixels, width, height), width, height)
+
+    for (let i = 0; i < pixels.length; i += 1) {
+      expect(restored[i]).toBeCloseTo(pixels[i], 3)
     }
   })
 })

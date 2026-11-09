@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import GrayCanvas from '@renderer/components/GrayCanvas'
-import { forwardDct2D, toLogMagnitude } from '@core/dct'
+import { forwardDct2D, inverseDct2D, toLogMagnitude } from '@core/dct'
 import { IMAGE_SIZE } from '@core/image'
 import { loadImageToGray } from '@renderer/services/imageFiles'
 
@@ -8,7 +8,9 @@ type Loaded = {
   name: string
   gray: Float32Array
   spectrum: Float32Array
+  reconstructed: Float32Array
   ms: number
+  maxError: number
   maxAbs: number
   meanAbs: number
   nonzero: number
@@ -27,12 +29,14 @@ export default function App(): React.JSX.Element {
       // 1. decode + normalize to 512x512 grayscale
       const gray = await loadImageToGray(file, IMAGE_SIZE)
 
-      // 2. forward DCT per 8x8 block
+      // 2. forward DCT per 8x8 block, then inverse DCT back to pixels
       const started = performance.now()
       const coeffs = forwardDct2D(gray, IMAGE_SIZE, IMAGE_SIZE)
+      const reconstructed = inverseDct2D(coeffs, IMAGE_SIZE, IMAGE_SIZE)
       const ms = performance.now() - started
 
-      // 3. simple coefficient statistics for the panel footer
+      // 3. round-trip error and simple coefficient statistics
+      let maxError = 0
       let maxAbs = 0
       let sumAbs = 0
       let nonzero = 0
@@ -41,13 +45,18 @@ export default function App(): React.JSX.Element {
         if (magnitude > maxAbs) maxAbs = magnitude
         sumAbs += magnitude
         if (magnitude > 1e-9) nonzero += 1
+
+        const error = Math.abs(reconstructed[i] - gray[i])
+        if (error > maxError) maxError = error
       }
 
       setLoaded({
         name: file.name,
         gray,
         spectrum: toLogMagnitude(coeffs),
+        reconstructed,
         ms,
+        maxError,
         maxAbs,
         meanAbs: sumAbs / coeffs.length,
         nonzero,
@@ -65,9 +74,10 @@ export default function App(): React.JSX.Element {
       <header className="topbar">
         <div>
           <p className="eyebrow">Multimedia · Lab 3</p>
-          <h1>DCT — forward transform</h1>
+          <h1>DCT — forward and inverse</h1>
           <p className="subtitle">
-            Photo → 512×512 grayscale → 8×8 block DCT. Coefficients are shown as log magnitude.
+            Photo → 512×512 grayscale → 8×8 block DCT → inverse DCT. Coefficients are shown as
+            log magnitude next to the reconstructed image.
           </p>
         </div>
 
@@ -106,8 +116,12 @@ export default function App(): React.JSX.Element {
               <strong>64 × 64 of 8×8</strong>
             </div>
             <div className="stat">
-              <span>Forward DCT</span>
+              <span>Forward + inverse</span>
               <strong>{loaded.ms.toFixed(1)} ms</strong>
+            </div>
+            <div className="stat">
+              <span>Round-trip error</span>
+              <strong>{loaded.maxError.toExponential(1)}</strong>
             </div>
             <div className="stat">
               <span>max |F|</span>
@@ -134,17 +148,24 @@ export default function App(): React.JSX.Element {
               title="DCT coefficients"
               note="log(1 + |F|), scaled to 0–255"
             />
+            <GrayCanvas
+              gray={loaded.reconstructed}
+              width={IMAGE_SIZE}
+              height={IMAGE_SIZE}
+              title="DCT reconstruction"
+              note="inverse DCT, no quantization"
+            />
           </div>
         </>
       ) : (
         <div className="empty">
-          <p>Load a photo to see the original and its DCT coefficients side by side.</p>
+          <p>Load a photo to see its DCT coefficients and the reconstructed image.</p>
           <p className="empty-hint">The image is resized to {IMAGE_SIZE}×{IMAGE_SIZE} and converted to grayscale first.</p>
         </div>
       )}
 
       <footer className="footnote">
-        Forward DCT only for now · inverse DCT, coefficient dropping and DWT come next.
+        Forward + inverse DCT · coefficient dropping and DWT come next.
       </footer>
     </div>
   )

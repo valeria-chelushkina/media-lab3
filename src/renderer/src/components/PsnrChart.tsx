@@ -1,4 +1,4 @@
-import type { SweepRow } from '@renderer/components/ResultsTable'
+import type { SweepRow } from '@renderer/types'
 
 type Point = {
   keep: number

@@ -1,9 +1,7 @@
-/** Grayscale pixel helpers. DOM-free so they can run under plain Node. */
+/** Grayscale pixel helpers. */
 
-/** Every image is normalized to this size before any transform. */
 export const IMAGE_SIZE = 512
 
-/** BT.601 luma from RGBA bytes -> one float per pixel in 0..255. */
 export function rgbaToGray(rgba: Uint8ClampedArray, width: number, height: number): Float32Array {
   const gray = new Float32Array(width * height)
 
@@ -14,7 +12,6 @@ export function rgbaToGray(rgba: Uint8ClampedArray, width: number, height: numbe
   return gray
 }
 
-/** One float per pixel -> RGBA bytes, clamped to 0..255. */
 export function grayToRgba(gray: Float32Array): Uint8ClampedArray<ArrayBuffer> {
   const rgba = new Uint8ClampedArray(gray.length * 4)
 

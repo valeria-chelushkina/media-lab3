@@ -1,10 +1,4 @@
-export type SweepRow = {
-  method: 'DCT' | 'DWT'
-  keepPercent: number
-  kept: number
-  total: number
-  psnr: number
-}
+import type { SweepRow } from '@renderer/types'
 
 function formatPsnr(value: number): string {
   return Number.isFinite(value) ? `${value.toFixed(2)} dB` : '∞ dB'
@@ -14,7 +8,6 @@ function estimatedRatio(row: SweepRow): string {
   return row.kept === 0 ? '∞' : `${(row.total / row.kept).toFixed(1)}×`
 }
 
-/** Builds and downloads the experiment table as CSV. */
 export function downloadResultsCsv(rows: SweepRow[]): void {
   const header = [
     'method',

@@ -1,345 +1,52 @@
-import { useEffect, useMemo, useState } from 'react'
-import GrayCanvas from '@renderer/components/GrayCanvas'
-import PsnrChart from '@renderer/components/PsnrChart'
-import ResultsTable, {
-  downloadResultsCsv,
-  type SweepRow,
-} from '@renderer/components/ResultsTable'
-import { IMAGE_SIZE } from '@core/image'
-import { runDct, runDwt, type MethodResult } from '@core/pipeline'
-import { toLogMagnitude } from '@core/visualize'
-import { loadImageToGray } from '@renderer/services/imageFiles'
-
-const SWEEP_LEVELS = [1, 0.5, 0.25, 0.1, 0.05]
-const DWT_LEVELS = [1, 2, 3, 4]
-
-type LoadedImage = {
-  name: string
-  gray: Float32Array
-}
-
-type View = {
-  dct: MethodResult
-  dwt: MethodResult
-  dctSpectrum: Float32Array
-  dwtSpectrum: Float32Array
-  dctMs: number
-  dwtMs: number
-}
-
-function useDebounced<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value)
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay)
-    return () => clearTimeout(timer)
-  }, [value, delay])
-
-  return debounced
-}
-
-function formatPsnr(value: number): string {
-  return Number.isFinite(value) ? `${value.toFixed(2)} dB` : '∞ dB'
-}
-
-function sharePercent(result: MethodResult): number {
-  return result.total > 0 ? (result.kept / result.total) * 100 : 0
-}
-
-function toSweepRow(
-  method: SweepRow['method'],
-  fraction: number,
-  result: MethodResult,
-): SweepRow {
-  return {
-    method,
-    keepPercent: Math.round(fraction * 100),
-    kept: result.kept,
-    total: result.total,
-    psnr: result.psnr,
-  }
-}
+import { useState } from 'react'
+import CompressionControls from '@renderer/components/CompressionControls'
+import EmptyState from '@renderer/components/EmptyState'
+import Experiments from '@renderer/components/Experiments'
+import ImagePanels from '@renderer/components/ImagePanels'
+import LabHeader from '@renderer/components/LabHeader'
+import StatsRow from '@renderer/components/StatsRow'
+import { useCompressionView } from '@renderer/hooks/useCompressionView'
+import { useImageFile } from '@renderer/hooks/useImageFile'
+import { useSweep } from '@renderer/hooks/useSweep'
 
 export default function App(): React.JSX.Element {
-  const [image, setImage] = useState<LoadedImage | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  const { image, error, busy, dragging, loadFile, dropHandlers } = useImageFile()
   const [keepPercent, setKeepPercent] = useState(25)
   const [dwtLevels, setDwtLevels] = useState(3)
-  const [sweep, setSweep] = useState<SweepRow[] | null>(null)
-  const [sweeping, setSweeping] = useState(false)
-  const [dragging, setDragging] = useState(false)
 
-  const appliedPercent = useDebounced(keepPercent, 90)
-
-  const view = useMemo<View | null>(() => {
-    if (!image) return null
-
-    const fraction = appliedPercent / 100
-
-    const dctStart = performance.now()
-    const dct = runDct(image.gray, IMAGE_SIZE, IMAGE_SIZE, fraction)
-    const dctMs = performance.now() - dctStart
-
-    const dwtStart = performance.now()
-    const dwt = runDwt(image.gray, IMAGE_SIZE, IMAGE_SIZE, fraction, dwtLevels)
-    const dwtMs = performance.now() - dwtStart
-
-    return {
-      dct,
-      dwt,
-      dctSpectrum: toLogMagnitude(dct.coeffs),
-      dwtSpectrum: toLogMagnitude(dwt.coeffs),
-      dctMs,
-      dwtMs,
-    }
-  }, [image, appliedPercent, dwtLevels])
-
-  useEffect(() => {
-    setSweep(null)
-  }, [image, dwtLevels])
-
-  async function handleFile(file: File): Promise<void> {
-    setBusy(true)
-    setError(null)
-
-    try {
-      const gray = await loadImageToGray(file, IMAGE_SIZE)
-      setImage({ name: file.name, gray })
-    } catch (cause) {
-      setImage(null)
-      setError(cause instanceof Error ? cause.message : 'Could not read that image.')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  function handleDrop(event: React.DragEvent<HTMLDivElement>): void {
-    event.preventDefault()
-    setDragging(false)
-
-    const file = event.dataTransfer.files?.[0]
-    if (file) void handleFile(file)
-  }
-
-  function handleSweep(): void {
-    if (!image) return
-
-    setSweeping(true)
-    window.setTimeout(() => {
-      const rows: SweepRow[] = []
-
-      for (const fraction of SWEEP_LEVELS) {
-        rows.push(
-          toSweepRow('DCT', fraction, runDct(image.gray, IMAGE_SIZE, IMAGE_SIZE, fraction)),
-        )
-        rows.push(
-          toSweepRow(
-            'DWT',
-            fraction,
-            runDwt(image.gray, IMAGE_SIZE, IMAGE_SIZE, fraction, dwtLevels),
-          ),
-        )
-      }
-
-      setSweep(rows)
-      setSweeping(false)
-    }, 0)
-  }
+  const { view, pending } = useCompressionView(image, keepPercent, dwtLevels)
+  const sweep = useSweep(image, dwtLevels)
 
   return (
-    <div
-      className={`shell${dragging ? ' is-dragging' : ''}`}
-      onDragOver={(event) => {
-        event.preventDefault()
-        setDragging(true)
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={handleDrop}
-    >
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">Multimedia · Lab 3</p>
-          <h1>DCT vs DWT — lossy compression</h1>
-          <p className="subtitle">
-            Photo → 512×512 grayscale → 8×8 block DCT or Haar DWT → keep the largest
-            coefficients → inverse transform. PSNR shows what the dropped coefficients cost.
-          </p>
-        </div>
-
-        <label className={`file-button${busy ? ' is-busy' : ''}`}>
-          <input
-            type="file"
-            accept="image/*"
-            disabled={busy}
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              if (file) void handleFile(file)
-              event.target.value = ''
-            }}
-          />
-          {busy ? 'Working…' : image ? 'Load another photo' : 'Load photo'}
-        </label>
-      </header>
+    <div className={`shell${dragging ? ' is-dragging' : ''}`} {...dropHandlers}>
+      <LabHeader busy={busy} hasImage={image !== null} onFile={loadFile} />
 
       {error ? <p className="error">{error}</p> : null}
 
       {image && view ? (
         <>
-          <div className="controls">
-            <div className="slider-row">
-              <label htmlFor="keep">Keep largest coefficients</label>
-              <input
-                id="keep"
-                type="range"
-                min={1}
-                max={100}
-                step={1}
-                value={keepPercent}
-                onChange={(event) => setKeepPercent(Number(event.target.value))}
-              />
-              <output htmlFor="keep">{keepPercent}%</output>
-            </div>
+          <CompressionControls
+            keepPercent={keepPercent}
+            onKeepPercentChange={setKeepPercent}
+            dwtLevels={dwtLevels}
+            onDwtLevelsChange={setDwtLevels}
+            pending={pending}
+            dctThreshold={view.dct.threshold}
+            dwtThreshold={view.dwt.threshold}
+          />
 
-            <div className="option-row">
-              <label htmlFor="levels">Haar decomposition levels</label>
-              <select
-                id="levels"
-                value={dwtLevels}
-                onChange={(event) => setDwtLevels(Number(event.target.value))}
-              >
-                {DWT_LEVELS.map((levels) => (
-                  <option key={levels} value={levels}>
-                    {levels}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <StatsRow image={image} view={view} />
+          <ImagePanels image={image} view={view} dwtLevels={dwtLevels} />
 
-            <p className="controls-hint">
-              {keepPercent !== appliedPercent
-                ? 'Recomputing…'
-                : `Threshold — DCT ${view.dct.threshold.toFixed(1)} · DWT ${view.dwt.threshold.toFixed(1)}`}
-            </p>
-          </div>
-
-          <div className="stats">
-            <div className="stat">
-              <span>File</span>
-              <strong title={image.name}>{image.name}</strong>
-            </div>
-            <div className="stat">
-              <span>Input</span>
-              <strong>
-                {IMAGE_SIZE} × {IMAGE_SIZE}
-              </strong>
-            </div>
-            <div className="stat">
-              <span>DCT time</span>
-              <strong>{view.dctMs.toFixed(0)} ms</strong>
-            </div>
-            <div className="stat">
-              <span>DWT time</span>
-              <strong>{view.dwtMs.toFixed(0)} ms</strong>
-            </div>
-            <div className="stat">
-              <span>DCT PSNR</span>
-              <strong>{formatPsnr(view.dct.psnr)}</strong>
-            </div>
-            <div className="stat">
-              <span>DWT PSNR</span>
-              <strong>{formatPsnr(view.dwt.psnr)}</strong>
-            </div>
-          </div>
-
-          <div className="panels">
-            <GrayCanvas
-              gray={image.gray}
-              width={IMAGE_SIZE}
-              height={IMAGE_SIZE}
-              title="Original"
-              note="grayscale, normalized"
-              saveName="original.png"
-            />
-            <GrayCanvas
-              gray={view.dct.reconstructed}
-              width={IMAGE_SIZE}
-              height={IMAGE_SIZE}
-              title="DCT reconstruction"
-              note={`PSNR ${formatPsnr(view.dct.psnr)} · ${sharePercent(view.dct).toFixed(1)}% kept`}
-              saveName="dct-reconstruction.png"
-            />
-            <GrayCanvas
-              gray={view.dwt.reconstructed}
-              width={IMAGE_SIZE}
-              height={IMAGE_SIZE}
-              title="DWT reconstruction"
-              note={`PSNR ${formatPsnr(view.dwt.psnr)} · ${sharePercent(view.dwt).toFixed(1)}% kept`}
-              saveName="dwt-reconstruction.png"
-            />
-          </div>
-
-          <div className="panels secondary">
-            <GrayCanvas
-              gray={view.dctSpectrum}
-              width={IMAGE_SIZE}
-              height={IMAGE_SIZE}
-              title="DCT coefficients"
-              note="log(1 + |F|), dropped ones are black"
-              saveName="dct-coefficients.png"
-            />
-            <GrayCanvas
-              gray={view.dwtSpectrum}
-              width={IMAGE_SIZE}
-              height={IMAGE_SIZE}
-              title="DWT coefficients"
-              note={`Haar, ${dwtLevels} level${dwtLevels === 1 ? '' : 's'} · log magnitude`}
-              saveName="dwt-coefficients.png"
-            />
-          </div>
-
-          <section className="sweep">
-            <div className="sweep-head">
-              <div>
-                <h2>Experiments</h2>
-                <p className="sweep-hint">
-                  100 / 50 / 25 / 10 / 5% for both methods · {dwtLevels} Haar level
-                  {dwtLevels === 1 ? '' : 's'}
-                </p>
-              </div>
-              <div className="sweep-actions">
-                <button type="button" onClick={handleSweep} disabled={sweeping}>
-                  {sweeping ? 'Running…' : 'Run sweep'}
-                </button>
-                {sweep ? (
-                  <button type="button" className="ghost" onClick={() => downloadResultsCsv(sweep)}>
-                    Export CSV
-                  </button>
-                ) : null}
-              </div>
-            </div>
-
-            {sweep ? (
-              <>
-                <PsnrChart rows={sweep} />
-                <ResultsTable rows={sweep} />
-              </>
-            ) : (
-              <p className="sweep-empty">
-                Runs the five keep levels for DCT and DWT and records kept coefficients,
-                PSNR and the estimated ratio.
-              </p>
-            )}
-          </section>
+          <Experiments
+            rows={sweep.rows}
+            running={sweep.running}
+            levels={dwtLevels}
+            onRun={sweep.run}
+          />
         </>
       ) : (
-        <div className="empty">
-          <p>Load a photo to compare DCT and DWT compression at the same keep share.</p>
-          <p className="empty-hint">
-            The image is resized to {IMAGE_SIZE}×{IMAGE_SIZE} and converted to grayscale first.
-            You can also drag and drop a photo anywhere on this window.
-          </p>
-        </div>
+        <EmptyState />
       )}
 
       <footer className="footnote">

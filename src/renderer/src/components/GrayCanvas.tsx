@@ -7,7 +7,6 @@ type Props = {
   height: number
   title: string
   note?: string
-  /** When set, a "Save" button downloads the canvas as PNG under this name. */
   saveName?: string
 }
 

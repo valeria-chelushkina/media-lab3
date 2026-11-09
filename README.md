@@ -18,7 +18,9 @@ Imports use path aliases: `@core/...` for algorithms, `@renderer/...` for UI cod
 
 The forward DCT follows the lecture slides `learn/Multi_10.pdf` (slides 16–18): the
 2D transform is `F = M·B·Mᵀ` with `M[u][i] = C(u)/2 · cos((2i+1)uπ/16)` and
-`C(0) = √2/2`, `C(ξ>0) = 1`, applied to raw pixel values (no level shift).
+`C(0) = √2/2`, `C(ξ>0) = 1`, applied to raw pixel values (no level shift). The inverse
+is `B = Mᵀ·F·M`, exactly slide 17's IDCT (no extra scaling, because the basis is
+orthonormal — see slide 30).
 
 ## Scripts
 

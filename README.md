@@ -8,10 +8,17 @@ Electron + Vite + React + TypeScript, built with [electron-vite](https://electro
 
 ```
 src/
+├─ core/       Algorithms: DCT, DWT, compression, metrics (no DOM, no Electron)
 ├─ main/       Electron main process (window, later: dialogs / fs)
 ├─ preload/    contextBridge API exposed to the UI as window.api
-└─ renderer/   React UI (src/ = app code, lib/ = pure math, no DOM)
+└─ renderer/   React UI (components, services, styles)
 ```
+
+Imports use path aliases: `@core/...` for algorithms, `@renderer/...` for UI code.
+
+The forward DCT follows the lecture slides `learn/Multi_10.pdf` (slides 16–18): the
+2D transform is `F = M·B·Mᵀ` with `M[u][i] = C(u)/2 · cos((2i+1)uπ/16)` and
+`C(0) = √2/2`, `C(ξ>0) = 1`, applied to raw pixel values (no level shift).
 
 ## Scripts
 
@@ -21,10 +28,11 @@ src/
 | `npm run build`    | Bundles main, preload and renderer into `out/`        |
 | `npm run start`    | Runs the built app (`build` first)                    |
 | `npm run typecheck`| `tsc --noEmit` over the whole project                 |
+| `npm test`         | Vitest unit tests for the algorithms in `src/core`    |
 
 ## Notes
 
 - Renderer talks to Electron only through `window.api` (`src/preload/index.ts`). Keep
   `contextIsolation: true` and `nodeIntegration: false`.
-- Put transforms, thresholding and PSNR in `src/renderer/src/lib/` as pure functions
-  (no DOM, no electron imports) so they can be unit-tested in plain Node later.
+- Put transforms, thresholding and PSNR in `src/core/` as pure functions
+  (no DOM, no Electron imports) so they can be unit-tested in plain Node.

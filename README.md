@@ -22,6 +22,10 @@ The forward DCT follows the lecture slides `learn/Multi_10.pdf` (slides 16–18)
 is `B = Mᵀ·F·M`, exactly slide 17's IDCT (no extra scaling, because the basis is
 orthonormal — see slide 30).
 
+Compression keeps the largest coefficients by magnitude (a global quantile threshold,
+with an adjustable share) and zeroes the rest. Quality is measured with PSNR on
+clamped 8-bit pixels: `PSNR = 10·log₁₀(255² / MSE)`.
+
 ## Scripts
 
 | Command            | What it does                                          |

@@ -41,9 +41,10 @@ PSNR on clamped 8-bit pixels: `PSNR = 10·log₁₀(255² / MSE)`.
 | `npm run typecheck`| `tsc --noEmit` over the whole project                 |
 | `npm test`         | Vitest unit tests for the algorithms in `src/core`    |
 
-The Experiments panel runs 100/50/25/10/5% keep levels for both methods and exports the
-table as CSV. "Est. ratio" is `total / kept` coefficients — a sparsity estimate, not an
-encoded file size.
+The Experiments panel runs 100/50/25/10/5% keep levels for both methods, draws a
+PSNR-vs-keep chart and exports the table as CSV. "Est. ratio" is `total / kept`
+coefficients — a sparsity estimate, not an encoded file size. Every panel has a
+**Save** button (PNG), and a photo can be dragged onto the window.
 
 ## Notes
 

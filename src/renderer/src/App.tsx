@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import GrayCanvas from '@renderer/components/GrayCanvas'
+import PsnrChart from '@renderer/components/PsnrChart'
 import ResultsTable, {
   downloadResultsCsv,
   type SweepRow,
@@ -22,7 +23,8 @@ type View = {
   dwt: MethodResult
   dctSpectrum: Float32Array
   dwtSpectrum: Float32Array
-  ms: number
+  dctMs: number
+  dwtMs: number
 }
 
 function useDebounced<T>(value: T, delay: number): T {
@@ -66,24 +68,30 @@ export default function App(): React.JSX.Element {
   const [dwtLevels, setDwtLevels] = useState(3)
   const [sweep, setSweep] = useState<SweepRow[] | null>(null)
   const [sweeping, setSweeping] = useState(false)
+  const [dragging, setDragging] = useState(false)
 
   const appliedPercent = useDebounced(keepPercent, 90)
 
   const view = useMemo<View | null>(() => {
     if (!image) return null
 
-    const started = performance.now()
     const fraction = appliedPercent / 100
+
+    const dctStart = performance.now()
     const dct = runDct(image.gray, IMAGE_SIZE, IMAGE_SIZE, fraction)
+    const dctMs = performance.now() - dctStart
+
+    const dwtStart = performance.now()
     const dwt = runDwt(image.gray, IMAGE_SIZE, IMAGE_SIZE, fraction, dwtLevels)
-    const ms = performance.now() - started
+    const dwtMs = performance.now() - dwtStart
 
     return {
       dct,
       dwt,
       dctSpectrum: toLogMagnitude(dct.coeffs),
       dwtSpectrum: toLogMagnitude(dwt.coeffs),
-      ms,
+      dctMs,
+      dwtMs,
     }
   }, [image, appliedPercent, dwtLevels])
 
@@ -104,6 +112,14 @@ export default function App(): React.JSX.Element {
     } finally {
       setBusy(false)
     }
+  }
+
+  function handleDrop(event: React.DragEvent<HTMLDivElement>): void {
+    event.preventDefault()
+    setDragging(false)
+
+    const file = event.dataTransfer.files?.[0]
+    if (file) void handleFile(file)
   }
 
   function handleSweep(): void {
@@ -132,7 +148,15 @@ export default function App(): React.JSX.Element {
   }
 
   return (
-    <div className="shell">
+    <div
+      className={`shell${dragging ? ' is-dragging' : ''}`}
+      onDragOver={(event) => {
+        event.preventDefault()
+        setDragging(true)
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={handleDrop}
+    >
       <header className="topbar">
         <div>
           <p className="eyebrow">Multimedia · Lab 3</p>
@@ -211,8 +235,12 @@ export default function App(): React.JSX.Element {
               </strong>
             </div>
             <div className="stat">
-              <span>Both methods</span>
-              <strong>{view.ms.toFixed(0)} ms</strong>
+              <span>DCT time</span>
+              <strong>{view.dctMs.toFixed(0)} ms</strong>
+            </div>
+            <div className="stat">
+              <span>DWT time</span>
+              <strong>{view.dwtMs.toFixed(0)} ms</strong>
             </div>
             <div className="stat">
               <span>DCT PSNR</span>
@@ -231,6 +259,7 @@ export default function App(): React.JSX.Element {
               height={IMAGE_SIZE}
               title="Original"
               note="grayscale, normalized"
+              saveName="original.png"
             />
             <GrayCanvas
               gray={view.dct.reconstructed}
@@ -238,6 +267,7 @@ export default function App(): React.JSX.Element {
               height={IMAGE_SIZE}
               title="DCT reconstruction"
               note={`PSNR ${formatPsnr(view.dct.psnr)} · ${sharePercent(view.dct).toFixed(1)}% kept`}
+              saveName="dct-reconstruction.png"
             />
             <GrayCanvas
               gray={view.dwt.reconstructed}
@@ -245,6 +275,7 @@ export default function App(): React.JSX.Element {
               height={IMAGE_SIZE}
               title="DWT reconstruction"
               note={`PSNR ${formatPsnr(view.dwt.psnr)} · ${sharePercent(view.dwt).toFixed(1)}% kept`}
+              saveName="dwt-reconstruction.png"
             />
           </div>
 
@@ -255,6 +286,7 @@ export default function App(): React.JSX.Element {
               height={IMAGE_SIZE}
               title="DCT coefficients"
               note="log(1 + |F|), dropped ones are black"
+              saveName="dct-coefficients.png"
             />
             <GrayCanvas
               gray={view.dwtSpectrum}
@@ -262,6 +294,7 @@ export default function App(): React.JSX.Element {
               height={IMAGE_SIZE}
               title="DWT coefficients"
               note={`Haar, ${dwtLevels} level${dwtLevels === 1 ? '' : 's'} · log magnitude`}
+              saveName="dwt-coefficients.png"
             />
           </div>
 
@@ -287,7 +320,10 @@ export default function App(): React.JSX.Element {
             </div>
 
             {sweep ? (
-              <ResultsTable rows={sweep} />
+              <>
+                <PsnrChart rows={sweep} />
+                <ResultsTable rows={sweep} />
+              </>
             ) : (
               <p className="sweep-empty">
                 Runs the five keep levels for DCT and DWT and records kept coefficients,
@@ -301,6 +337,7 @@ export default function App(): React.JSX.Element {
           <p>Load a photo to compare DCT and DWT compression at the same keep share.</p>
           <p className="empty-hint">
             The image is resized to {IMAGE_SIZE}×{IMAGE_SIZE} and converted to grayscale first.
+            You can also drag and drop a photo anywhere on this window.
           </p>
         </div>
       )}

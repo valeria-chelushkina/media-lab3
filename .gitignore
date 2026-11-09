@@ -2,6 +2,7 @@ task.md
 node_modules/
 out/
 dist/
+.dev/
 *.local
 *.log
 .DS_Store

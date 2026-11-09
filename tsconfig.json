@@ -15,13 +15,20 @@
     "isolatedModules": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@renderer/*": ["./src/renderer/src/*"],
+      "@core/*": ["./src/core/*"]
+    }
   },
   "include": [
     "electron.vite.config.ts",
+    "vitest.config.mts",
     "src/main/**/*.ts",
     "src/preload/**/*.ts",
+    "src/core/**/*.ts",
     "src/renderer/src/**/*.ts",
-    "src/renderer/src/**/*.tsx"
+    "src/renderer/src/**/*.tsx",
+    "tests/**/*.ts"
   ]
 }

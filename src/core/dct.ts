@@ -106,6 +106,74 @@ export function forwardDct2D(pixels: Float32Array, width: number, height: number
 }
 
 /**
+ * 1D inverse DCT (slide 18):
+ *   f(i) = sum_{u=0}^{7} C(u)/2 * cos((2i + 1) * u * pi / 16) * F(u)
+ * Matrix form: f = M^T * F.
+ */
+export function inverseDct1D(coeffs: Float64Array): Float64Array {
+  if (coeffs.length !== BLOCK_SIZE) {
+    throw new Error(`Expected ${BLOCK_SIZE} coefficients, got ${coeffs.length}.`)
+  }
+
+  return multiplyVector(DCT_MATRIX_T, coeffs, BLOCK_SIZE)
+}
+
+/**
+ * 2D inverse DCT of one 8x8 block (slide 17):
+ *   f(i, j) = sum_u sum_v C(u)C(v)/4
+ *             * cos((2i + 1)u pi / 16) * cos((2j + 1)v pi / 16) * F(u, v)
+ * Matrix form: B = M^T * F * M.
+ *
+ * Slides 26-27 show the same thing as a sum of basis functions weighted by the
+ * coefficients: DC gives the flat part, every AC term adds one cosine detail.
+ */
+export function inverseDct8(coeffs: Float64Array): Float64Array {
+  if (coeffs.length !== BLOCK_SIZE * BLOCK_SIZE) {
+    throw new Error(`Expected a ${BLOCK_SIZE}x${BLOCK_SIZE} block, got ${coeffs.length} values.`)
+  }
+
+  return multiply(multiply(DCT_MATRIX_T, coeffs, BLOCK_SIZE), DCT_MATRIX, BLOCK_SIZE)
+}
+
+/**
+ * Inverse DCT of a whole coefficient image, block by block.
+ * Returns raw pixel values; clamping to 0..255 is a rendering concern, just as
+ * the forward transform takes f(i, j) without a level shift.
+ */
+export function inverseDct2D(
+  coeffs: Float64Array,
+  width: number,
+  height: number,
+): Float32Array {
+  if (width % BLOCK_SIZE !== 0 || height % BLOCK_SIZE !== 0) {
+    throw new Error(`Image size ${width}x${height} is not divisible by ${BLOCK_SIZE}.`)
+  }
+
+  const pixels = new Float32Array(width * height)
+  const block = new Float64Array(BLOCK_SIZE * BLOCK_SIZE)
+
+  for (let by = 0; by < height; by += BLOCK_SIZE) {
+    for (let bx = 0; bx < width; bx += BLOCK_SIZE) {
+      for (let y = 0; y < BLOCK_SIZE; y += 1) {
+        for (let x = 0; x < BLOCK_SIZE; x += 1) {
+          block[y * BLOCK_SIZE + x] = coeffs[(by + y) * width + bx + x]
+        }
+      }
+
+      const restored = inverseDct8(block)
+
+      for (let y = 0; y < BLOCK_SIZE; y += 1) {
+        for (let x = 0; x < BLOCK_SIZE; x += 1) {
+          pixels[(by + y) * width + bx + x] = restored[y * BLOCK_SIZE + x]
+        }
+      }
+    }
+  }
+
+  return pixels
+}
+
+/**
  * Display scaling for coefficients: log(1 + |F|) normalized to 0..255, then
  * gamma-lifted. DC is orders of magnitude above the AC terms, so a plain log
  * scale leaves the high frequencies almost black; the gamma restores contrast.

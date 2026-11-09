@@ -22,9 +22,14 @@ The forward DCT follows the lecture slides `learn/Multi_10.pdf` (slides 16–18)
 is `B = Mᵀ·F·M`, exactly slide 17's IDCT (no extra scaling, because the basis is
 orthonormal — see slide 30).
 
+The Haar DWT follows `learn/Multi_11.pdf` (slide 31): one level splits the image into
+`LL | HL / LH | HH`, the `LL` quadrant is decomposed again (1–4 levels in the UI), and
+the filters are orthonormal (`(a ± b)/√2`), so the inverse needs no extra scaling.
+
 Compression keeps the largest coefficients by magnitude (a global quantile threshold,
-with an adjustable share) and zeroes the rest. Quality is measured with PSNR on
-clamped 8-bit pixels: `PSNR = 10·log₁₀(255² / MSE)`.
+with an adjustable share) and zeroes the rest. The same mechanism is applied to the DCT
+and the DWT, so both are compared at the same keep fraction. Quality is measured with
+PSNR on clamped 8-bit pixels: `PSNR = 10·log₁₀(255² / MSE)`.
 
 ## Scripts
 
@@ -35,6 +40,10 @@ clamped 8-bit pixels: `PSNR = 10·log₁₀(255² / MSE)`.
 | `npm run start`    | Runs the built app (`build` first)                    |
 | `npm run typecheck`| `tsc --noEmit` over the whole project                 |
 | `npm test`         | Vitest unit tests for the algorithms in `src/core`    |
+
+The Experiments panel runs 100/50/25/10/5% keep levels for both methods and exports the
+table as CSV. "Est. ratio" is `total / kept` coefficients — a sparsity estimate, not an
+encoded file size.
 
 ## Notes
 

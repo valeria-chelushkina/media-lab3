@@ -67,6 +67,26 @@ h1 {
   line-height: 1.6;
 }
 
+button {
+  padding: 10px 16px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 550;
+  cursor: pointer;
+  transition: filter 120ms ease;
+}
+
+button:hover {
+  filter: brightness(1.1);
+}
+
+button:active {
+  filter: brightness(0.94);
+}
+
 .file-button {
   flex: none;
   padding: 11px 18px;
@@ -239,6 +259,123 @@ h1 {
   font-size: 13px !important;
 }
 
+.option-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.option-row select {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+
+.option-row select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.panels.secondary {
+  margin-top: 16px;
+}
+
+.sweep {
+  margin-top: 24px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.sweep-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.sweep-head h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.sweep-hint {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.sweep-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.sweep-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+button.ghost {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--text);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.results {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.results th,
+.results td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.results th {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.results th:first-child,
+.results td:first-child {
+  text-align: left;
+}
+
+.results td.method {
+  font-weight: 600;
+}
+
+.results tbody tr:last-child td {
+  border-bottom: none;
+}
+
 .footnote {
   margin: 22px 0 0;
   padding-top: 16px;
@@ -259,5 +396,14 @@ h1 {
 
   .panels {
     grid-template-columns: 1fr;
+  }
+
+  .option-row {
+    flex-wrap: wrap;
+  }
+
+  .sweep-head {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

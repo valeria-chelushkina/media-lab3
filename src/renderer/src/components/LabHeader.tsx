@@ -16,7 +16,6 @@ export default function LabHeader({ busy, hasImage, onFile }: Props): React.JSX.
   return (
     <header className="topbar">
       <div>
-        <p className="eyebrow">Multimedia · Lab 3</p>
         <h1>DCT vs DWT — lossy compression</h1>
         <p className="subtitle">
           Photo → 512×512 grayscale → 8×8 block DCT or Haar DWT → keep the largest

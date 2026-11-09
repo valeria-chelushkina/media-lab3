@@ -1,12 +1,18 @@
 :root {
-  color-scheme: dark;
-  --bg: #0f1115;
-  --panel: #171a21;
-  --line: #262b36;
-  --text: #e7eaf0;
-  --muted: #8b93a7;
-  --accent: #5b8cff;
-  --danger: #ff7a7a;
+  color-scheme: light;
+  --bg: #f7f4fb;
+  --surface: #ffffff;
+  --panel: #ffffff;
+  --line: #e3dcf0;
+  --text: #2a1f3d;
+  --muted: #6f6486;
+  --accent: #7c3aed;
+  --accent-strong: #6d28d9;
+  --accent-pressed: #5b21b6;
+  --accent-soft: #f3eefe;
+  --danger: #b42318;
+  --chart-dct: #7c3aed;
+  --chart-dwt: #d946ef;
 }
 
 * {
@@ -21,7 +27,7 @@ body,
 
 body {
   margin: 0;
-  background: radial-gradient(1200px 600px at 20% -10%, #1b2233 0%, var(--bg) 55%);
+  background: var(--bg);
   color: var(--text);
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -42,14 +48,6 @@ body {
   gap: 24px;
   padding-bottom: 22px;
   border-bottom: 1px solid var(--line);
-}
-
-.eyebrow {
-  margin: 0 0 8px;
-  font-size: 12px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--accent);
 }
 
 h1 {
@@ -76,15 +74,15 @@ button {
   font: inherit;
   font-weight: 550;
   cursor: pointer;
-  transition: filter 120ms ease;
+  transition: background-color 120ms ease;
 }
 
 button:hover {
-  filter: brightness(1.1);
+  background: var(--accent-strong);
 }
 
 button:active {
-  filter: brightness(0.94);
+  background: var(--accent-pressed);
 }
 
 .file-button {
@@ -96,11 +94,11 @@ button:active {
   font-size: 14px;
   font-weight: 550;
   cursor: pointer;
-  transition: filter 120ms ease;
+  transition: background-color 120ms ease;
 }
 
 .file-button:hover {
-  filter: brightness(1.1);
+  background: var(--accent-strong);
 }
 
 .file-button.is-busy {
@@ -117,9 +115,9 @@ button:active {
 .error {
   margin: 18px 0 0;
   padding: 12px 14px;
-  border: 1px solid rgba(255, 122, 122, 0.35);
+  border: 1px solid rgba(180, 35, 24, 0.28);
   border-radius: 10px;
-  background: rgba(255, 122, 122, 0.08);
+  background: rgba(180, 35, 24, 0.06);
   color: var(--danger);
   font-size: 14px;
 }
@@ -129,7 +127,7 @@ button:active {
   padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--surface);
 }
 
 .slider-row {
@@ -176,7 +174,7 @@ button:active {
   padding: 10px 14px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--surface);
 }
 
 .stat span {
@@ -258,8 +256,8 @@ button:active {
 
 .panel-save:hover {
   border-color: var(--accent);
-  color: var(--text);
-  filter: none;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 
 .panel canvas {
@@ -267,7 +265,7 @@ button:active {
   width: 100%;
   height: auto;
   aspect-ratio: 1 / 1;
-  background: #000;
+  background: #1c1528;
 }
 
 .empty {
@@ -275,6 +273,7 @@ button:active {
   padding: 64px 24px;
   border: 1px dashed var(--line);
   border-radius: 16px;
+  background: var(--surface);
   text-align: center;
 }
 
@@ -302,7 +301,7 @@ button:active {
   padding: 6px 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--panel);
+  background: var(--surface);
   color: var(--text);
   font: inherit;
 }
@@ -352,19 +351,19 @@ button:active {
 }
 
 .line-dct {
-  stroke: #5b8cff;
+  stroke: var(--chart-dct);
 }
 
 .line-dwt {
-  stroke: #46d19b;
+  stroke: var(--chart-dwt);
 }
 
 .dot-dct {
-  fill: #5b8cff;
+  fill: var(--chart-dct);
 }
 
 .dot-dwt {
-  fill: #46d19b;
+  fill: var(--chart-dwt);
 }
 
 .chart-legend {
@@ -386,11 +385,11 @@ button:active {
 }
 
 .swatch.dct {
-  background: #5b8cff;
+  background: var(--chart-dct);
 }
 
 .swatch.dwt {
-  background: #46d19b;
+  background: var(--chart-dwt);
 }
 
 .chart-note {
@@ -408,7 +407,7 @@ button:active {
   padding: 18px;
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--surface);
 }
 
 .sweep-head {
@@ -451,7 +450,12 @@ button:disabled {
 button.ghost {
   background: transparent;
   border-color: var(--line);
-  color: var(--text);
+  color: var(--accent);
+}
+
+button.ghost:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
 }
 
 .table-wrap {
@@ -492,14 +496,6 @@ button.ghost {
 
 .results tbody tr:last-child td {
   border-bottom: none;
-}
-
-.footnote {
-  margin: 22px 0 0;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 13px;
 }
 
 @media (max-width: 760px) {

@@ -48,10 +48,6 @@ export default function App(): React.JSX.Element {
       ) : (
         <EmptyState />
       )}
-
-      <footer className="footnote">
-        Own DCT (matrix form) and Haar DWT · adjustable coefficient dropping · PSNR + experiments
-      </footer>
     </div>
   )
 }

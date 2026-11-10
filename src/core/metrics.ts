@@ -1,8 +1,4 @@
-/**
- * Image quality metrics used for the DCT / DWT comparison.
- * Both operands are pixel or coefficient arrays of the same length; values are
- * clamped and rounded to 8 bits, so the numbers match what is displayed.
- */
+// Image quality metrics used for the DCT / DWT comparison.
 
 const MAX_VALUE = 255
 

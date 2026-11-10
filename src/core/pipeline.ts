@@ -10,7 +10,6 @@ import { mse, psnrFromMse } from '@core/metrics'
 
 export type MethodResult = {
   reconstructed: Float32Array
-  /** Coefficients after reduction, ready for display. */
   coeffs: Float64Array
   kept: number
   total: number
@@ -41,7 +40,6 @@ export function runDct(
   }
 }
 
-/** Same pipeline for the Haar DWT: forward, coefficient reduction, inverse. */
 export function runDwt(
   gray: Float32Array,
   width: number,

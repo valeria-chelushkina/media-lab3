@@ -1,18 +1,13 @@
 /**
- * Coefficient reduction ("compression") shared by DCT and, later, DWT.
- *
- * Strategy: keep the largest coefficients by magnitude. A global quantile
+ * Keep the largest coefficients by magnitude. A global quantile
  * threshold is used instead of a per-block rule so both transforms can be
  * compared on the same "share of coefficients kept" scale.
  */
 
 export type CompressionResult = {
-  /** Copy of the coefficients with everything below the threshold zeroed. */
   coeffs: Float64Array
-  /** Non-zero coefficients left in the result. */
   kept: number
   total: number
-  /** Magnitude cut-off; coefficients with |F| >= threshold survive. */
   threshold: number
 }
 
@@ -48,8 +43,6 @@ export function keepLargest(coeffs: Float64Array, keepFraction: number): Compres
   const magnitudes = Float64Array.from(coeffs, Math.abs).sort()
   const threshold = magnitudes[total - target]
 
-  // A zero threshold means the image has fewer significant coefficients than
-  // requested; keeping everything is equivalent to dropping only exact zeros.
   if (threshold <= 0) {
     return { coeffs: out, kept: countNonZero(out), total, threshold: 0 }
   }

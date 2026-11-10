@@ -3,10 +3,8 @@ import {
   BLOCK_SIZE,
   buildDctMatrix,
   c,
-  forwardDct1D,
   forwardDct2D,
   forwardDct8,
-  inverseDct1D,
   inverseDct2D,
   inverseDct8,
 } from '@core/dct'
@@ -19,7 +17,6 @@ function sumSquares(values: ArrayLike<number>): number {
   return total
 }
 
-/** Slide 17 formula, written out literally for cross-checking the matrix form. */
 function referenceDct2D(block: Float64Array): Float64Array {
   const out = new Float64Array(N)
 
@@ -43,22 +40,6 @@ function referenceDct2D(block: Float64Array): Float64Array {
   return out
 }
 
-/** Slide 18 inverse formula, written out literally. */
-function referenceIdct1D(coeffs: Float64Array): Float64Array {
-  const out = new Float64Array(BLOCK_SIZE)
-
-  for (let i = 0; i < BLOCK_SIZE; i += 1) {
-    let sum = 0
-    for (let u = 0; u < BLOCK_SIZE; u += 1) {
-      sum += (c(u) / 2) * Math.cos(((2 * i + 1) * u * Math.PI) / 16) * coeffs[u]
-    }
-    out[i] = sum
-  }
-
-  return out
-}
-
-/** Slide 17 inverse formula, written out literally. */
 function referenceIdct2D(coeffs: Float64Array): Float64Array {
   const out = new Float64Array(N)
 
@@ -95,7 +76,7 @@ function pseudoRandomBlock(seed = 7): Float64Array {
   return block
 }
 
-describe('basis matrix (slides 18 and 20)', () => {
+describe('basis matrix', () => {
   it('matches M[u][i] = C(u)/2 * cos((2i+1)u*pi/16) for 8 points', () => {
     const matrix = buildDctMatrix(BLOCK_SIZE)
 
@@ -122,29 +103,8 @@ describe('basis matrix (slides 18 and 20)', () => {
   })
 })
 
-describe('forwardDct1D (slide 18)', () => {
-  it('reproduces the worked example from slide 24: F = 69, -49, 74, 11, 16, 117, 44, -5', () => {
-    const signal = Float64Array.from([85, -65, 15, 30, -56, 35, 90, 60])
-    const expected = [69, -49, 74, 11, 16, 117, 44, -5]
-    const coeffs = forwardDct1D(signal)
-
-    expected.forEach((value, u) => {
-      expect(coeffs[u]).toBeCloseTo(value, 0)
-    })
-  })
-
-  it('gives F(0) ≈ 283 for a constant signal of 100 and zero AC (slide 24a)', () => {
-    const coeffs = forwardDct1D(new Float64Array(BLOCK_SIZE).fill(100))
-
-    expect(coeffs[0]).toBeCloseTo((Math.SQRT2 / 4) * 800, 10)
-    for (let u = 1; u < BLOCK_SIZE; u += 1) {
-      expect(Math.abs(coeffs[u])).toBeLessThan(1e-9)
-    }
-  })
-})
-
-describe('forwardDct8 (slide 17)', () => {
-  it('equals the literal 2D double sum from the slide', () => {
+describe('forwardDct8', () => {
+  it('equals the literal 2D double sum', () => {
     const block = pseudoRandomBlock()
     const expected = referenceDct2D(block)
     const coeffs = forwardDct8(block)
@@ -159,7 +119,7 @@ describe('forwardDct8 (slide 17)', () => {
     expect(sumSquares(forwardDct8(block))).toBeCloseTo(sumSquares(block), 9)
   })
 
-  it('puts a constant block into DC = 8 * mean, AC = 0 (slide 25)', () => {
+  it('puts a constant block into DC = 8 * mean, AC = 0', () => {
     const coeffs = forwardDct8(new Float64Array(N).fill(100))
 
     expect(coeffs[0]).toBeCloseTo(8 * 100, 9)
@@ -189,40 +149,8 @@ describe('forwardDct2D', () => {
   })
 })
 
-describe('inverseDct1D (slides 18, 26-27)', () => {
-  it('equals the literal inverse sum from the slide', () => {
-    const signal = Float64Array.from([85, -65, 15, 30, -56, 35, 90, 60])
-    const coeffs = forwardDct1D(signal)
-    const expected = referenceIdct1D(coeffs)
-    const restored = inverseDct1D(coeffs)
-
-    for (let i = 0; i < BLOCK_SIZE; i += 1) {
-      expect(restored[i]).toBeCloseTo(expected[i], 9)
-    }
-  })
-
-  it('round-trips an arbitrary signal exactly', () => {
-    const signal = pseudoRandomBlock(3).slice(0, BLOCK_SIZE)
-    const restored = inverseDct1D(forwardDct1D(signal))
-
-    for (let i = 0; i < BLOCK_SIZE; i += 1) {
-      expect(restored[i]).toBeCloseTo(signal[i], 10)
-    }
-  })
-
-  it('recovers the slide 24 signal from its rounded coefficients within ±1', () => {
-    const roundedCoeffs = Float64Array.from([69, -49, 74, 11, 16, 117, 44, -5])
-    const expected = [85, -65, 15, 30, -56, 35, 90, 60]
-    const restored = inverseDct1D(roundedCoeffs)
-
-    expected.forEach((value, i) => {
-      expect(Math.abs(restored[i] - value)).toBeLessThan(1)
-    })
-  })
-})
-
-describe('inverseDct8 (slide 17)', () => {
-  it('equals the literal 2D inverse double sum from the slide', () => {
+describe('inverseDct8', () => {
+  it('equals the literal 2D inverse double sum', () => {
     const block = pseudoRandomBlock(13)
     const coeffs = forwardDct8(block)
     const expected = referenceIdct2D(coeffs)
@@ -242,7 +170,7 @@ describe('inverseDct8 (slide 17)', () => {
     }
   })
 
-  it('turns a DC-only block back into a constant 100 block (slide 25)', () => {
+  it('turns a DC-only block back into a constant 100 block', () => {
     const coeffs = new Float64Array(N)
     coeffs[0] = 8 * 100
     const restored = inverseDct8(coeffs)

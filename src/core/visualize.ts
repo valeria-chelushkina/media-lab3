@@ -1,8 +1,4 @@
 /**
- * Display scaling for transform coefficients. Shared by DCT and DWT views.
- */
-
-/**
  * log(1 + |F|) normalized to 0..255, then gamma-lifted. DC/low-frequency terms
  * are orders of magnitude above the details, so a plain log scale leaves the
  * high frequencies almost black; the gamma restores contrast.

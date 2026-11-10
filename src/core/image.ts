@@ -1,5 +1,3 @@
-/** Grayscale pixel helpers. */
-
 export const IMAGE_SIZE = 512
 
 export function rgbaToGray(rgba: Uint8ClampedArray, width: number, height: number): Float32Array {

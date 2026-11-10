@@ -1,6 +1,6 @@
 # Lab work #3 for Multimedia
 
-Lossy image compression with DCT and Haar DWT. See `task.md` for the assignment.
+Lossy image compression with DCT and Haar DWT.
 
 ## Stack
 
@@ -16,15 +16,12 @@ src/
 
 Imports use path aliases: `@core/...` for algorithms, `@renderer/...` for UI code.
 
-The forward DCT follows the lecture slides `learn/Multi_10.pdf` (slides 16–18): the
-2D transform is `F = M·B·Mᵀ` with `M[u][i] = C(u)/2 · cos((2i+1)uπ/16)` and
+The forward DCT: the 2D transform is `F = M·B·Mᵀ` with `M[u][i] = C(u)/2 · cos((2i+1)uπ/16)` and
 `C(0) = √2/2`, `C(ξ>0) = 1`, applied to raw pixel values (no level shift). The inverse
-is `B = Mᵀ·F·M`, exactly slide 17's IDCT (no extra scaling, because the basis is
-orthonormal — see slide 30).
+is `B = Mᵀ·F·M`.
 
-The Haar DWT follows `learn/Multi_11.pdf` (slide 31): one level splits the image into
-`LL | HL / LH | HH`, the `LL` quadrant is decomposed again (1–4 levels in the UI), and
-the filters are orthonormal (`(a ± b)/√2`), so the inverse needs no extra scaling.
+The Haar DWT: one level splits the image into `LL | HL / LH | HH`, the `LL` quadrant is decomposed again
+(1–4 levels in the UI), and the filters are orthonormal (`(a ± b)/√2`), so the inverse needs no extra scaling.
 
 Compression keeps the largest coefficients by magnitude (a global quantile threshold,
 with an adjustable share) and zeroes the rest. The same mechanism is applied to the DCT
